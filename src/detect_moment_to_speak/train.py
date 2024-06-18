@@ -4,11 +4,14 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from transformers import Wav2Vec2Processor
 from model import TransformerModel
+import librosa
+import random
 
 class AudioDataset(Dataset):
-    def __init__(self, segments, labels):
+    def __init__(self, segments, labels, sample_rate=16000):
         self.segments = segments
         self.labels = labels
+        self.sample_rate = sample_rate
         
     def __len__(self):
         return len(self.segments)
@@ -16,6 +19,7 @@ class AudioDataset(Dataset):
     def __getitem__(self, idx):
         segment = self.segments[idx]
         label = self.labels[idx]
+        segment = apply_random_transform(segment, self.sample_rate)
         return segment, label
 
 def collate_fn(batch):
@@ -25,6 +29,31 @@ def collate_fn(batch):
     inputs = processor(inputs, return_tensors='pt', padding=True, sampling_rate=16000).input_values
     labels = torch.tensor(labels, dtype=torch.float32)
     return inputs, labels
+
+def add_noise(audio, noise_level=0.005):
+    noise = np.random.randn(len(audio))
+    augmented_audio = audio + noise_level * noise
+    return augmented_audio
+
+def time_shift(audio, shift_max=2):
+    shift = np.random.randint(-shift_max, shift_max)
+    return np.roll(audio, shift)
+
+def pitch_shift(audio, sr, pitch_factor=2):
+    return librosa.effects.pitch_shift(audio, sr, n_steps=pitch_factor)
+
+def speed_change(audio, speed_factor=1.1):
+    return librosa.effects.time_stretch(audio, speed_factor)
+
+def apply_random_transform(audio, sr):
+    transforms = [add_noise, time_shift, pitch_shift, speed_change]
+    transform = random.choice(transforms)
+    if transform == pitch_shift:
+        return transform(audio, sr, pitch_factor=random.uniform(-2, 2))
+    elif transform == speed_change:
+        return transform(audio, speed_factor=random.uniform(0.9, 1.1))
+    else:
+        return transform(audio)
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
