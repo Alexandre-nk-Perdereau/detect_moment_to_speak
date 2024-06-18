@@ -62,23 +62,26 @@ def create_labels_for_tracks(tracks, sample_rate=16000, window_size=50):
     labels = np.clip(labels, 0, 1)  # Ensure labels are between 0 and 1
     return labels
 
-def save_segments_and_labels(audio, sr, labels, segment_duration=10, output_dir='output'):
+
+def save_segments_and_labels(audio, sr, labels, segment_duration=10, output_dir='output', step_size=0.3):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    num_segments = len(audio) // (segment_duration * sr)
+    segment_length = segment_duration * sr
+    step_length = int(step_size * sr)  # Step size in samples
     segments = []
     segment_labels = []
 
-    for i in range(num_segments):
-        start = i * segment_duration * sr
-        end = start + segment_duration * sr
+    for start in range(0, len(audio) - segment_length, step_length):
+        end = start + segment_length
         segment = audio[start:end]
-        segment_label = labels[start // (sr // 100):end // (sr // 100)]
-        if len(segment_label) < segment_duration * 100:  # Ensure label length matches segment length
-            segment_label = np.pad(segment_label, (0, segment_duration * 100 - len(segment_label)), 'constant')
+        # Utiliser l'étiquette correspondant à la fin du segment
+        label_index = (end // (sr // 100)) - 1  # indice pour la fin du segment
+        if label_index >= len(labels):
+            break  # Éviter d'aller hors limites
+        segment_label = labels[label_index]
         segments.append(segment)
-        segment_labels.append(segment_label)  # Append labels directly to a list
+        segment_labels.append(segment_label)
 
     segments = np.array(segments)
     segment_labels = np.array(segment_labels)
@@ -86,7 +89,7 @@ def save_segments_and_labels(audio, sr, labels, segment_duration=10, output_dir=
     np.save(os.path.join(output_dir, 'segments.npy'), segments)
     np.save(os.path.join(output_dir, 'segment_labels.npy'), segment_labels)
 
-def process_all_files(data_dir='data', output_dir='output', segment_duration=10, sample_rate=16000):
+def process_all_files(data_dir='data', output_dir='output', segment_duration=10, sample_rate=16000, step_size=0.3):
     for root, dirs, _ in os.walk(data_dir):
         for dir in dirs:
             folder_path = os.path.join(root, dir)
@@ -94,7 +97,7 @@ def process_all_files(data_dir='data', output_dir='output', segment_duration=10,
             if tracks:
                 combined_audio = np.concatenate([load_audio(file_path, sample_rate)[0] for file_path, _, _ in tracks])
                 labels = create_labels_for_tracks(tracks, sample_rate)
-                save_segments_and_labels(combined_audio, sample_rate, labels, segment_duration, output_dir)
+                save_segments_and_labels(combined_audio, sample_rate, labels, segment_duration, output_dir, step_size)
 
 if __name__ == "__main__":
     process_all_files()

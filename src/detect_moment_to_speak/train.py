@@ -45,8 +45,7 @@ def train():
 
     model = TransformerModel().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    criterion = torch.nn.MSELoss()
-
+    criterion = torch.nn.BCEWithLogitsLoss()
     num_epochs = 100
     patience = 5
     best_val_loss = float('inf')

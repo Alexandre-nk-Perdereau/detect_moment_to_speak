@@ -6,12 +6,8 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         self.wav2vec2 = Wav2Vec2Model.from_pretrained(pretrained_model_name)
         self.classifier = nn.Linear(self.wav2vec2.config.hidden_size, num_labels)
-        self.pool = nn.AdaptiveAvgPool1d(1000)
         
     def forward(self, input_values):
         outputs = self.wav2vec2(input_values).last_hidden_state
-        logits = self.classifier(outputs)
-        logits = logits.permute(0, 2, 1)
-        logits = self.pool(logits)
-        logits = logits.permute(0, 2, 1)
-        return logits
+        logits = self.classifier(outputs[:, -1, :])
+        return logits  # We do not apply a sigmoïd here because we use BCEWithLogitsLoss
