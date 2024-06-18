@@ -40,20 +40,20 @@ def time_shift(audio, shift_max=2):
     return np.roll(audio, shift)
 
 def pitch_shift(audio, sr, pitch_factor=2):
-    return librosa.effects.pitch_shift(audio, sr, n_steps=pitch_factor)
+    return librosa.effects.pitch_shift(audio, sr=sr, n_steps=pitch_factor)
 
 def speed_change(audio, speed_factor=1.1):
-    return librosa.effects.time_stretch(audio, speed_factor)
+    return librosa.effects.time_stretch(audio, rate=speed_factor)
 
 def apply_random_transform(audio, sr):
-    transforms = [add_noise, time_shift, pitch_shift, speed_change]
+    transforms = [
+        add_noise,
+        time_shift,
+        lambda x: pitch_shift(x, sr, pitch_factor=random.uniform(-2, 2)),
+        lambda x: speed_change(x, speed_factor=random.uniform(0.9, 1.1))
+    ]
     transform = random.choice(transforms)
-    if transform == pitch_shift:
-        return transform(audio, sr, pitch_factor=random.uniform(-2, 2))
-    elif transform == speed_change:
-        return transform(audio, speed_factor=random.uniform(0.9, 1.1))
-    else:
-        return transform(audio)
+    return transform(audio)
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
